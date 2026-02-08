@@ -1,0 +1,1485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Sunshine">
+    <meta name="theme-color" content="#1a1a2e">
+    <title>Sunshine Finder</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,300&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f7f5f0;
+            --ink: #1a1a2e;
+            --ink-light: #6b6b7b;
+            --ink-faint: #b0b0ba;
+            --accent: #e8a030;
+            --accent-warm: #f0c060;
+            --sunny: #e8a030;
+            --partly: #7aaed4;
+            --cloudy: #a0a0a8;
+            --surface: #ffffff;
+            --border: #e8e6e0;
+            --radius: 10px;
+            --shadow: 0 2px 12px rgba(26,26,46,0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--ink);
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ── */
+        .header {
+            background: var(--ink);
+            color: var(--bg);
+            padding: max(env(safe-area-inset-top), 16px) 20px 16px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
+        .header p {
+            opacity: 0.5;
+            font-size: 0.78rem;
+            font-weight: 300;
+            margin-top: 2px;
+            letter-spacing: 0.04em;
+        }
+
+        /* ── Controls ── */
+        .controls {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            overflow: hidden;
+            transition: max-height 0.35s ease;
+        }
+
+        .controls-toggle {
+            padding: 14px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .controls-toggle h3 {
+            font-size: 0.82rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--ink-light);
+        }
+
+        .arrow {
+            font-size: 0.7rem;
+            transition: transform 0.3s;
+            color: var(--ink-faint);
+        }
+
+        .controls.collapsed .arrow {
+            transform: rotate(180deg);
+        }
+
+        .controls.collapsed #controls-content {
+            display: none;
+        }
+
+        #controls-content {
+            padding: 0 20px 20px;
+        }
+
+        .control-row {
+            margin-bottom: 16px;
+        }
+
+        .control-label {
+            font-weight: 600;
+            font-size: 0.7rem;
+            margin-bottom: 6px;
+            display: block;
+            color: var(--ink-light);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        input[type="date"],
+        input[type="time"],
+        input[type="number"] {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--ink);
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .location-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .location-row input { flex: 1; }
+
+        .btn-locate {
+            padding: 11px 14px;
+            background: var(--ink);
+            color: var(--bg);
+            border: none;
+            border-radius: var(--radius);
+            font-size: 1.1rem;
+            min-width: 48px;
+            cursor: pointer;
+        }
+
+        .btn-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .btn-key {
+            padding: 9px;
+            border-radius: var(--radius);
+            font-size: 0.82rem;
+            font-weight: 600;
+            font-family: 'DM Sans', sans-serif;
+            cursor: pointer;
+            border: 1.5px solid var(--border);
+            background: var(--surface);
+            color: var(--ink);
+            transition: background 0.2s;
+        }
+
+        .btn-key:hover { background: var(--bg); }
+
+        .btn-key.test {
+            background: var(--ink);
+            color: var(--bg);
+            border-color: var(--ink);
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            -webkit-appearance: none;
+            background: var(--border);
+            border-radius: 2px;
+            margin-top: 4px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--ink);
+            cursor: pointer;
+        }
+
+        .range-display {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            color: var(--ink-faint);
+            margin-top: 6px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .time-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .checkbox-label input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--ink);
+        }
+
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-row input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--ink);
+        }
+
+        .checkbox-row input[type="number"] {
+            width: 70px;
+            padding: 8px;
+        }
+
+        /* ── Cultural Filters ── */
+        .cultural-section {
+            border-top: 1.5px solid var(--border);
+            padding-top: 16px;
+            margin-top: 4px;
+        }
+
+        .cultural-section .control-label {
+            margin-bottom: 10px;
+        }
+
+        .cultural-checks {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+
+        .cultural-checks label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .cultural-checks input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--ink);
+        }
+
+        /* ── Search Button ── */
+        .btn-search {
+            width: 100%;
+            padding: 15px;
+            background: var(--ink);
+            color: var(--bg);
+            border: none;
+            border-radius: var(--radius);
+            font-size: 0.95rem;
+            font-weight: 700;
+            font-family: 'DM Sans', sans-serif;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: opacity 0.2s;
+        }
+
+        .btn-search:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: var(--radius);
+            font-size: 0.82rem;
+            text-align: center;
+            display: none;
+        }
+
+        .status.error { background: #fef0f0; color: #c44; }
+        .status.success { background: #f0fef4; color: #3a7; }
+
+        .api-info {
+            background: var(--bg);
+            padding: 10px 12px;
+            border-radius: var(--radius);
+            font-size: 0.78rem;
+            color: var(--ink-light);
+            margin-bottom: 14px;
+            border: 1px solid var(--border);
+        }
+
+        .api-info a {
+            color: var(--ink);
+            font-weight: 600;
+            text-decoration: none;
+            border-bottom: 1px solid var(--ink-faint);
+        }
+
+        /* ── Map ── */
+        .map-container {
+            flex: 1;
+            position: relative;
+            min-height: 250px;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            min-height: 250px;
+            z-index: 1;
+        }
+
+        /* Leaflet custom popup */
+        .leaflet-popup-content-wrapper {
+            border-radius: var(--radius) !important;
+            box-shadow: var(--shadow) !important;
+            font-family: 'DM Sans', sans-serif !important;
+        }
+
+        .leaflet-popup-content {
+            margin: 12px 14px !important;
+            font-size: 0.85rem !important;
+            line-height: 1.5 !important;
+        }
+
+        .popup-name {
+            font-weight: 700;
+            font-size: 0.95rem;
+            margin-bottom: 4px;
+        }
+
+        .popup-detail {
+            color: var(--ink-light);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+        }
+
+        /* ── Results Panel (overlay on map) ── */
+        .results-panel {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--surface);
+            border-radius: 16px 16px 0 0;
+            box-shadow: 0 -4px 20px rgba(26,26,46,0.12);
+            z-index: 1000;
+            max-height: 55%;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            display: none;
+            transition: transform 0.3s ease;
+        }
+
+        .results-panel.active { display: block; }
+
+        .results-handle {
+            width: 36px;
+            height: 4px;
+            background: var(--ink-faint);
+            border-radius: 2px;
+            margin: 10px auto 0;
+        }
+
+        .results-header {
+            padding: 12px 20px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            background: var(--surface);
+            z-index: 2;
+        }
+
+        .results-header h2 {
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .results-header p {
+            color: var(--ink-light);
+            font-size: 0.75rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .btn-share {
+            padding: 8px 14px;
+            background: var(--ink);
+            color: var(--bg);
+            border: none;
+            border-radius: var(--radius);
+            font-size: 0.78rem;
+            font-weight: 600;
+            font-family: 'DM Sans', sans-serif;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .result-list {
+            padding: 0 20px 20px;
+        }
+
+        .result-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .result-item:hover { opacity: 0.7; }
+
+        .result-item.cloudy { opacity: 0.3; }
+
+        .result-icon { font-size: 1.3rem; min-width: 24px; text-align: center; }
+
+        .result-city {
+            font-weight: 600;
+            min-width: 80px;
+            flex-shrink: 0;
+        }
+
+        .result-data {
+            display: flex;
+            gap: 10px;
+            font-size: 0.78rem;
+            color: var(--ink-light);
+            font-family: 'JetBrains Mono', monospace;
+            flex-wrap: wrap;
+            margin-left: auto;
+        }
+
+        .confidence-badge {
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 0.6rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .confidence-high { background: #e8f5e9; color: #2e7d32; }
+        .confidence-medium { background: #fff8e1; color: #f57f17; }
+        .confidence-low { background: #fce4ec; color: #c62828; }
+
+        /* ── Loading ── */
+        .loading {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(247,245,240,0.95);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .loading.active { display: flex; }
+
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 2.5px solid var(--border);
+            border-top: 2.5px solid var(--ink);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .loading-text {
+            font-size: 0.82rem;
+            color: var(--ink-light);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* ── Legend (on map) ── */
+        .map-legend {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 10px 14px;
+            z-index: 1000;
+            box-shadow: var(--shadow);
+            font-size: 0.72rem;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        /* ── Desktop layout ── */
+        @media (min-width: 768px) {
+            body {
+                flex-direction: row;
+                overflow: hidden;
+            }
+
+            .sidebar {
+                width: 380px;
+                min-width: 380px;
+                height: 100vh;
+                overflow-y: auto;
+                display: flex;
+                flex-direction: column;
+                border-right: 1px solid var(--border);
+            }
+
+            .header {
+                flex-shrink: 0;
+            }
+
+            .controls {
+                flex-shrink: 0;
+            }
+
+            .desktop-results {
+                flex: 1;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                display: none;
+            }
+
+            .desktop-results.active { display: block; }
+
+            .map-container {
+                flex: 1;
+                height: 100vh;
+            }
+
+            /* Hide mobile results panel on desktop */
+            .results-panel { display: none !important; }
+        }
+
+        @media (max-width: 767px) {
+            .sidebar {
+                flex-shrink: 0;
+            }
+
+            .desktop-results { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Sidebar (on desktop) / stacked (on mobile) -->
+<div class="sidebar">
+    <div class="header">
+        <h1>☀️ Sunshine Finder</h1>
+        <p>Find where the sun is</p>
+    </div>
+
+    <div class="controls" id="controls">
+        <div class="controls-toggle" onclick="toggleControls()">
+            <h3>Search Settings</h3>
+            <span class="arrow">▼</span>
+        </div>
+
+        <div id="controls-content">
+            <div class="api-info">
+                Get a free API key at <a href="https://openweathermap.org/api" target="_blank">openweathermap.org</a>
+            </div>
+
+            <div class="control-row">
+                <label class="control-label">API Key</label>
+                <input type="password" id="api-key" placeholder="OpenWeatherMap API key">
+                <div class="btn-row">
+                    <button class="btn-key" id="save-key-btn">Save</button>
+                    <button class="btn-key test" id="test-key-btn">Test</button>
+                </div>
+                <div id="api-status" style="margin-top: 6px; font-size: 0.78rem; text-align: center;"></div>
+            </div>
+
+            <div class="control-row">
+                <label class="control-label">Location</label>
+                <div class="location-row">
+                    <input type="text" id="location" placeholder="City or place name">
+                    <button class="btn-locate" id="locate-btn">📍</button>
+                </div>
+            </div>
+
+            <div class="control-row">
+                <label class="control-label">Radius</label>
+                <input type="range" id="radius" min="50" max="500" value="200" step="50">
+                <div class="range-display">
+                    <span>50 km</span>
+                    <span id="radius-value">200 km</span>
+                    <span>500 km</span>
+                </div>
+            </div>
+
+            <div class="control-row">
+                <label class="control-label">Date</label>
+                <input type="date" id="date">
+            </div>
+
+            <div class="control-row">
+                <label class="control-label">Time Range</label>
+                <div class="checkbox-label">
+                    <input type="checkbox" id="all-day" checked>
+                    <span>All Day</span>
+                </div>
+                <div class="time-inputs">
+                    <input type="time" id="time-from" disabled>
+                    <input type="time" id="time-to" disabled>
+                </div>
+            </div>
+
+            <div class="control-row">
+                <label class="control-label">Min Temperature</label>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="temp-enabled">
+                    <input type="number" id="min-temp" value="18" disabled>
+                    <span style="font-size: 0.85rem; color: var(--ink-light);">°C</span>
+                </div>
+            </div>
+
+            <div class="control-row">
+                <label class="control-label">Max Clouds</label>
+                <input type="range" id="max-clouds" min="0" max="100" value="30" step="10">
+                <div class="range-display">
+                    <span>Clear</span>
+                    <span id="clouds-value">30%</span>
+                    <span>Overcast</span>
+                </div>
+            </div>
+
+            <div class="control-row">
+                <label class="control-label">Max Rain</label>
+                <input type="range" id="max-rain" min="0" max="100" value="20" step="10">
+                <div class="range-display">
+                    <span>Dry</span>
+                    <span id="rain-value">20%</span>
+                    <span>Rain</span>
+                </div>
+            </div>
+
+            <div class="control-row cultural-section">
+                <label class="control-label">Cultural Sites</label>
+                <div class="cultural-checks">
+                    <label><input type="checkbox" id="filter-unesco" checked> 🌍 UNESCO</label>
+                    <label><input type="checkbox" id="filter-museums" checked> 🏛️ Museums</label>
+                    <label><input type="checkbox" id="filter-architecture" checked> 🏰 Architecture</label>
+                    <label><input type="checkbox" id="filter-art" checked> 🎨 Art</label>
+                </div>
+            </div>
+
+            <button class="btn-search" id="search-btn">Find Sunshine</button>
+            <div class="status" id="status"></div>
+        </div>
+    </div>
+
+    <!-- Desktop results (inside sidebar) -->
+    <div class="desktop-results" id="desktop-results">
+        <div class="results-header">
+            <div>
+                <h2>Results</h2>
+                <p id="desktop-results-info"></p>
+            </div>
+            <button class="btn-share" id="share-btn-desktop" onclick="shareResults()">📤 Share</button>
+        </div>
+        <div class="result-list" id="desktop-result-list"></div>
+    </div>
+</div>
+
+<!-- Map -->
+<div class="map-container">
+    <div id="map"></div>
+    <div class="map-legend">
+        <div class="legend-item"><div class="legend-dot" style="background: var(--sunny);"></div> Sunny</div>
+        <div class="legend-item"><div class="legend-dot" style="background: var(--partly);"></div> Partly</div>
+        <div class="legend-item"><div class="legend-dot" style="background: var(--cloudy);"></div> Cloudy</div>
+    </div>
+
+    <!-- Mobile results (overlay on map) -->
+    <div class="results-panel" id="results-panel">
+        <div class="results-handle"></div>
+        <div class="results-header">
+            <div>
+                <h2>Results</h2>
+                <p id="mobile-results-info"></p>
+            </div>
+            <button class="btn-share" id="share-btn-mobile" onclick="shareResults()">📤 Share</button>
+        </div>
+        <div class="result-list" id="mobile-result-list"></div>
+    </div>
+</div>
+
+<!-- Loading overlay -->
+<div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loading-text">Searching...</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // Wait for Leaflet to be ready
+    if (typeof L === 'undefined') {
+        throw new Error('Leaflet failed to load');
+    }
+
+    // ══════════════════════════════════════════
+    // CITIES DATABASE
+    // ══════════════════════════════════════════
+    const cities = [
+        { name: "Milan", lat: 45.4642, lon: 9.1900 },
+        { name: "Rome", lat: 41.9028, lon: 12.4964 },
+        { name: "Florence", lat: 43.7696, lon: 11.2558 },
+        { name: "Venice", lat: 45.4408, lon: 12.3155 },
+        { name: "Naples", lat: 40.8518, lon: 14.2681 },
+        { name: "Turin", lat: 45.0703, lon: 7.6869 },
+        { name: "Bologna", lat: 44.4949, lon: 11.3426 },
+        { name: "Genoa", lat: 44.4056, lon: 8.9463 },
+        { name: "Verona", lat: 45.4384, lon: 10.9916 },
+        { name: "Brescia", lat: 45.5416, lon: 10.2118 },
+        { name: "Bergamo", lat: 45.6983, lon: 9.6773 },
+        { name: "Trieste", lat: 45.6495, lon: 13.7768 },
+        { name: "Padua", lat: 45.4064, lon: 11.8768 },
+        { name: "Vicenza", lat: 45.5455, lon: 11.5354 },
+        { name: "Pisa", lat: 43.7228, lon: 10.4017 },
+        { name: "Siena", lat: 43.3188, lon: 11.3308 },
+        { name: "Como", lat: 45.8081, lon: 9.0852 },
+        { name: "Parma", lat: 44.8015, lon: 10.3279 },
+        { name: "Modena", lat: 44.6469, lon: 10.9252 },
+        { name: "Perugia", lat: 43.1122, lon: 12.3888 },
+        { name: "Ancona", lat: 43.6158, lon: 13.5189 },
+        { name: "Palermo", lat: 38.1157, lon: 13.3615 },
+        { name: "Bari", lat: 41.1171, lon: 16.8719 },
+        { name: "Catania", lat: 37.5079, lon: 15.0830 },
+        { name: "Cagliari", lat: 39.2238, lon: 9.1217 },
+        { name: "Lecce", lat: 40.3515, lon: 18.1750 },
+        { name: "Sorrento", lat: 40.6263, lon: 14.3757 },
+        { name: "Taormina", lat: 37.8526, lon: 15.2876 },
+        { name: "Ferrara", lat: 44.8381, lon: 11.6198 },
+        { name: "Mantua", lat: 45.1564, lon: 10.7914 },
+        { name: "Lugano", lat: 46.0037, lon: 8.9511 },
+        { name: "Zurich", lat: 47.3769, lon: 8.5417 },
+        { name: "Geneva", lat: 46.2044, lon: 6.1432 },
+        { name: "Nice", lat: 43.7102, lon: 7.2620 },
+        { name: "Monaco", lat: 43.7384, lon: 7.4246 },
+        { name: "Lyon", lat: 45.7640, lon: 4.8357 },
+        { name: "Marseille", lat: 43.2965, lon: 5.3698 },
+        { name: "Munich", lat: 48.1351, lon: 11.5820 },
+        { name: "Vienna", lat: 48.2082, lon: 16.3738 },
+        { name: "Ljubljana", lat: 46.0569, lon: 14.5058 },
+        { name: "Zagreb", lat: 45.8150, lon: 15.9819 },
+        { name: "Barcelona", lat: 41.3851, lon: 2.1734 }
+    ];
+
+    // ══════════════════════════════════════════
+    // CULTURAL SITES DATABASE
+    // ══════════════════════════════════════════
+    const culturalSites = {
+        unesco: [
+            { name: "Historic Centre of Rome", lat: 41.9028, lon: 12.4964, city: "Rome" },
+            { name: "Historic Centre of Florence", lat: 43.7696, lon: 11.2558, city: "Florence" },
+            { name: "Venice and its Lagoon", lat: 45.4408, lon: 12.3155, city: "Venice" },
+            { name: "Piazza del Duomo, Pisa", lat: 43.7230, lon: 10.3966, city: "Pisa" },
+            { name: "Historic Centre of Siena", lat: 43.3188, lon: 11.3308, city: "Siena" },
+            { name: "Historic Centre of Naples", lat: 40.8518, lon: 14.2681, city: "Naples" },
+            { name: "Pompeii", lat: 40.7489, lon: 14.4897, city: "Pompeii" },
+            { name: "Amalfi Coast", lat: 40.6333, lon: 14.6027, city: "Amalfi" },
+            { name: "Cinque Terre", lat: 44.1277, lon: 9.7162, city: "Cinque Terre" },
+            { name: "Val d'Orcia", lat: 43.0833, lon: 11.6167, city: "Val d'Orcia" },
+            { name: "Verona", lat: 45.4384, lon: 10.9916, city: "Verona" },
+            { name: "Assisi", lat: 43.0708, lon: 12.6172, city: "Assisi" },
+            { name: "Urbino", lat: 43.7262, lon: 12.6365, city: "Urbino" },
+            { name: "Villa Adriana, Tivoli", lat: 41.9436, lon: 12.7742, city: "Tivoli" },
+            { name: "Castel del Monte", lat: 41.0839, lon: 16.2722, city: "Andria" },
+            { name: "Trulli di Alberobello", lat: 40.7818, lon: 17.2370, city: "Alberobello" },
+            { name: "Sassi di Matera", lat: 40.6664, lon: 16.6043, city: "Matera" },
+            { name: "Ferrara", lat: 44.8381, lon: 11.6198, city: "Ferrara" },
+            { name: "Mantua and Sabbioneta", lat: 45.1564, lon: 10.7914, city: "Mantua" },
+            { name: "Vicenza, Palladian Villas", lat: 45.5455, lon: 11.5354, city: "Vicenza" },
+            { name: "Dolomites", lat: 46.4102, lon: 11.8440, city: "Dolomites" },
+            { name: "Sacri Monti of Piedmont", lat: 45.8986, lon: 8.4047, city: "Varallo" }
+        ],
+        museums: [
+            { name: "Uffizi Gallery", lat: 43.7678, lon: 11.2553, city: "Florence" },
+            { name: "Galleria dell'Accademia", lat: 43.7769, lon: 11.2588, city: "Florence" },
+            { name: "Vatican Museums", lat: 41.9065, lon: 12.4536, city: "Vatican City" },
+            { name: "Capitoline Museums", lat: 41.8930, lon: 12.4828, city: "Rome" },
+            { name: "Borghese Gallery", lat: 41.9142, lon: 12.4922, city: "Rome" },
+            { name: "Peggy Guggenheim", lat: 45.4306, lon: 12.3315, city: "Venice" },
+            { name: "Egyptian Museum", lat: 45.0676, lon: 7.6847, city: "Turin" },
+            { name: "Pinacoteca di Brera", lat: 45.4720, lon: 9.1881, city: "Milan" },
+            { name: "Museo Archeologico", lat: 40.8533, lon: 14.2508, city: "Naples" },
+            { name: "MAXXI", lat: 41.9276, lon: 12.4652, city: "Rome" },
+            { name: "Museo del Novecento", lat: 45.4615, lon: 9.1899, city: "Milan" },
+            { name: "Fondazione Prada", lat: 45.4529, lon: 9.2065, city: "Milan" }
+        ],
+        architecture: [
+            { name: "Duomo di Milano", lat: 45.4642, lon: 9.1900, city: "Milan" },
+            { name: "Colosseum", lat: 41.8902, lon: 12.4922, city: "Rome" },
+            { name: "Pantheon", lat: 41.8986, lon: 12.4769, city: "Rome" },
+            { name: "St. Peter's Basilica", lat: 41.9022, lon: 12.4539, city: "Vatican City" },
+            { name: "Florence Cathedral", lat: 43.7732, lon: 11.2560, city: "Florence" },
+            { name: "Doge's Palace", lat: 45.4336, lon: 12.3403, city: "Venice" },
+            { name: "St. Mark's Basilica", lat: 45.4345, lon: 12.3398, city: "Venice" },
+            { name: "Leaning Tower of Pisa", lat: 43.7230, lon: 10.3966, city: "Pisa" },
+            { name: "Arena di Verona", lat: 45.4390, lon: 10.9944, city: "Verona" },
+            { name: "Castello Sforzesco", lat: 45.4707, lon: 9.1795, city: "Milan" },
+            { name: "Castel Sant'Angelo", lat: 41.9031, lon: 12.4663, city: "Rome" }
+        ],
+        art_venues: [
+            { name: "Biennale di Venezia", lat: 45.4304, lon: 12.3638, city: "Venice" },
+            { name: "Triennale Milano", lat: 45.4727, lon: 9.1733, city: "Milan" },
+            { name: "Pirelli HangarBicocca", lat: 45.5217, lon: 9.2145, city: "Milan" },
+            { name: "Palazzo Grassi", lat: 45.4331, lon: 12.3269, city: "Venice" },
+            { name: "Punta della Dogana", lat: 45.4308, lon: 12.3383, city: "Venice" },
+            { name: "Palazzo Strozzi", lat: 43.7712, lon: 11.2507, city: "Florence" },
+            { name: "Fondazione Sandretto", lat: 45.0488, lon: 7.6615, city: "Turin" }
+        ]
+    };
+
+    // ══════════════════════════════════════════
+    // MAP INIT
+    // ══════════════════════════════════════════
+    let map, weatherMarkers = [], searchCircle = null, culturalMarkers = [];
+    let userLocation = null;
+
+    function initMap() {
+        map = L.map('map', { zoomControl: false }).setView([44.5, 11.0], 6);
+        L.control.zoom({ position: 'topleft' }).addTo(map);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap · © CARTO',
+            maxZoom: 19
+        }).addTo(map);
+    }
+
+    initMap();
+
+    // ══════════════════════════════════════════
+    // UI SETUP
+    // ══════════════════════════════════════════
+
+    // Default date = tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    document.getElementById('date').value = tomorrow.toISOString().split('T')[0];
+    document.getElementById('date').min = new Date().toISOString().split('T')[0];
+
+    // Load saved API key
+    const savedKey = localStorage.getItem('owm-api-key');
+    if (savedKey) document.getElementById('api-key').value = savedKey;
+
+    // Range sliders
+    document.getElementById('radius').addEventListener('input', e => {
+        document.getElementById('radius-value').textContent = e.target.value + ' km';
+    });
+    document.getElementById('max-clouds').addEventListener('input', e => {
+        document.getElementById('clouds-value').textContent = e.target.value + '%';
+    });
+    document.getElementById('max-rain').addEventListener('input', e => {
+        document.getElementById('rain-value').textContent = e.target.value + '%';
+    });
+
+    // Checkboxes
+    document.getElementById('temp-enabled').addEventListener('change', e => {
+        document.getElementById('min-temp').disabled = !e.target.checked;
+    });
+    document.getElementById('all-day').addEventListener('change', e => {
+        document.getElementById('time-from').disabled = e.target.checked;
+        document.getElementById('time-to').disabled = e.target.checked;
+    });
+
+    // Cultural filter listeners
+    ['filter-unesco', 'filter-museums', 'filter-architecture', 'filter-art'].forEach(id => {
+        document.getElementById(id).addEventListener('change', updateCulturalDisplay);
+    });
+
+    function toggleControls() {
+        document.getElementById('controls').classList.toggle('collapsed');
+    }
+
+    // ══════════════════════════════════════════
+    // API KEY SAVE / TEST
+    // ══════════════════════════════════════════
+    document.getElementById('save-key-btn').addEventListener('click', () => {
+        const key = document.getElementById('api-key').value;
+        if (key) {
+            localStorage.setItem('owm-api-key', key);
+            showStatus('API key saved', 'success');
+            document.getElementById('api-status').innerHTML = '<span style="color:#2e7d32;">✓ Saved</span>';
+        } else {
+            showStatus('Enter API key first', 'error');
+        }
+    });
+
+    document.getElementById('test-key-btn').addEventListener('click', async () => {
+        const key = document.getElementById('api-key').value;
+        const statusDiv = document.getElementById('api-status');
+        if (!key) { statusDiv.innerHTML = '<span style="color:#c44;">Enter key first</span>'; return; }
+        statusDiv.innerHTML = '<span style="color:var(--ink-light);">Testing...</span>';
+        try {
+            const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=London&appid=${key}`);
+            if (res.ok) statusDiv.innerHTML = '<span style="color:#2e7d32;">✓ Key works</span>';
+            else if (res.status === 401) statusDiv.innerHTML = '<span style="color:#c44;">✗ Invalid key</span>';
+            else statusDiv.innerHTML = `<span style="color:#c44;">✗ Error ${res.status}</span>`;
+        } catch { statusDiv.innerHTML = '<span style="color:#c44;">✗ Connection error</span>'; }
+    });
+
+    // ══════════════════════════════════════════
+    // GEOLOCATION
+    // ══════════════════════════════════════════
+    document.getElementById('locate-btn').addEventListener('click', function () {
+        if (!navigator.geolocation) { showStatus('Location not supported', 'error'); return; }
+        const btn = this;
+        btn.textContent = '⏳';
+        navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+                userLocation = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+                try {
+                    const res = await fetch(
+                        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${userLocation.lat}&lon=${userLocation.lon}`,
+                        { headers: { 'User-Agent': 'SunshineFinder/1.0' } }
+                    );
+                    const data = await res.json();
+                    document.getElementById('location').value = data.address.city || data.address.town || 'Current Location';
+                } catch {
+                    document.getElementById('location').value = 'Current Location';
+                }
+                btn.textContent = '✓';
+                setTimeout(() => btn.textContent = '📍', 2000);
+            },
+            () => { showStatus('Location denied', 'error'); btn.textContent = '📍'; }
+        );
+    });
+
+    // ══════════════════════════════════════════
+    // UTILITIES
+    // ══════════════════════════════════════════
+    function showStatus(msg, type) {
+        const s = document.getElementById('status');
+        s.textContent = msg;
+        s.className = 'status ' + type;
+        s.style.display = 'block';
+        setTimeout(() => s.style.display = 'none', 3000);
+    }
+
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) ** 2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    // ══════════════════════════════════════════
+    // API CALLS
+    // ══════════════════════════════════════════
+    async function geocodeLocation(loc) {
+        if (userLocation && loc.includes('Current')) {
+            return { ...userLocation, name: 'Current Location' };
+        }
+        const apiKey = document.getElementById('api-key').value;
+        const res = await fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(loc)}&limit=1&appid=${apiKey}`);
+        if (!res.ok) {
+            if (res.status === 401) throw new Error('Invalid API key');
+            throw new Error('Geocoding failed');
+        }
+        const data = await res.json();
+        if (!data || data.length === 0) throw new Error(`"${loc}" not found`);
+        return { lat: data[0].lat, lon: data[0].lon, name: data[0].name };
+    }
+
+    async function getWeather(lat, lon, apiKey) {
+        const res = await fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`);
+        if (!res.ok) throw new Error('Weather API error');
+        return await res.json();
+    }
+
+    // ══════════════════════════════════════════
+    // CORE LOGIC: findBestSlot
+    // Uses pod === 'd' to filter daylight hours only.
+    // Builds a real time range from all matching slots.
+    // ══════════════════════════════════════════
+    function findBestSlot(weatherData, date, timeFrom, timeTo, criteria, allDay) {
+        const forecasts = weatherData.list;
+        const targetDateStr = new Date(date).toISOString().split('T')[0];
+
+        const daytimeForecasts = []; // all daytime forecasts for this date
+        const sunnySlots = [];      // daytime forecasts passing filters
+
+        for (const f of forecasts) {
+            const fDate = new Date(f.dt * 1000);
+            const fDateStr = fDate.toISOString().split('T')[0];
+
+            if (fDateStr !== targetDateStr) continue;
+            // CRITICAL: only daytime hours via API pod flag
+            if (f.sys.pod !== 'd') continue;
+
+            const hour = fDate.getHours();
+            const hourMin = `${String(hour).padStart(2, '0')}:${String(fDate.getMinutes()).padStart(2, '0')}`;
+
+            // Time range filter (if not "all day")
+            if (!allDay && timeFrom && timeTo) {
+                if (hourMin < timeFrom || hourMin > timeTo) continue;
+            }
+
+            daytimeForecasts.push({ f, hour });
+
+            const temp = f.main.temp;
+            const clouds = f.clouds.all;
+            const rain = (f.pop || 0) * 100;
+
+            if (temp >= criteria.minTemp && clouds <= criteria.maxClouds && rain <= criteria.maxRain) {
+                sunnySlots.push({ hour, temp: Math.round(temp), clouds: Math.round(clouds), rain: Math.round(rain) });
+            }
+        }
+
+        let timeRange = 'No sun';
+        let sunny = false;
+        let displayTemp = 0;
+        let displayClouds = 100;
+        let displayRain = 100;
+
+        if (sunnySlots.length > 0) {
+            sunny = true;
+            const hours = sunnySlots.map(s => s.hour).sort((a, b) => a - b);
+            const minH = hours[0];
+            const maxH = hours[hours.length - 1];
+
+            // OWM forecast is every 3 hours, so the last slot covers +3h
+            const totalDaytimeSlots = daytimeForecasts.length;
+            if (sunnySlots.length >= totalDaytimeSlots && totalDaytimeSlots >= 3) {
+                timeRange = 'All day';
+            } else if (minH === maxH) {
+                // Single slot: show the 3h window it covers
+                timeRange = `${String(minH).padStart(2, '0')}:00–${String(minH + 3).padStart(2, '0')}:00`;
+            } else {
+                timeRange = `${String(minH).padStart(2, '0')}:00–${String(maxH + 3).padStart(2, '0')}:00`;
+            }
+
+            displayTemp = Math.round(sunnySlots.reduce((s, x) => s + x.temp, 0) / sunnySlots.length);
+            displayClouds = Math.round(sunnySlots.reduce((s, x) => s + x.clouds, 0) / sunnySlots.length);
+            displayRain = Math.round(sunnySlots.reduce((s, x) => s + x.rain, 0) / sunnySlots.length);
+        } else if (daytimeForecasts.length > 0) {
+            // No sunny slot — pick least cloudy daytime forecast for display
+            let best = null, bestScore = -Infinity;
+            for (const { f } of daytimeForecasts) {
+                const score = f.main.temp - f.clouds.all - (f.pop || 0) * 100;
+                if (score > bestScore) { bestScore = score; best = f; }
+            }
+            if (best) {
+                const h = new Date(best.dt * 1000).getHours();
+                timeRange = `${String(h).padStart(2, '0')}:00`;
+                displayTemp = Math.round(best.main.temp);
+                displayClouds = Math.round(best.clouds.all);
+                displayRain = Math.round((best.pop || 0) * 100);
+            }
+        }
+
+        // Confidence
+        const daysAway = Math.ceil((new Date(date) - new Date()) / (1000 * 60 * 60 * 24));
+        let confidence = 'high';
+        if (daysAway > 2) confidence = 'medium';
+        if (daysAway > 4) confidence = 'low';
+        // Also lower confidence if cloud variance is high among daytime slots
+        if (daytimeForecasts.length > 1) {
+            const cloudValues = daytimeForecasts.map(d => d.f.clouds.all);
+            const avg = cloudValues.reduce((a, b) => a + b, 0) / cloudValues.length;
+            const variance = cloudValues.reduce((a, b) => a + Math.abs(b - avg), 0) / cloudValues.length;
+            if (variance > 30) confidence = confidence === 'high' ? 'medium' : 'low';
+        }
+
+        return { time: timeRange, temp: displayTemp, clouds: displayClouds, rain: displayRain, sunny, confidence };
+    }
+
+    // ══════════════════════════════════════════
+    // MAIN SEARCH
+    // ══════════════════════════════════════════
+    async function findSunshine() {
+        const apiKey = document.getElementById('api-key').value;
+        if (!apiKey) { showStatus('Enter API key first', 'error'); return; }
+
+        const location = document.getElementById('location').value;
+        if (!location) { showStatus('Enter a location', 'error'); return; }
+
+        const date = document.getElementById('date').value;
+        if (!date) { showStatus('Select a date', 'error'); return; }
+
+        const radius = parseInt(document.getElementById('radius').value);
+        const allDay = document.getElementById('all-day').checked;
+        const timeFrom = document.getElementById('time-from').value;
+        const timeTo = document.getElementById('time-to').value;
+        const tempEnabled = document.getElementById('temp-enabled').checked;
+        const minTemp = tempEnabled ? parseFloat(document.getElementById('min-temp').value) : -100;
+        const maxClouds = parseInt(document.getElementById('max-clouds').value);
+        const maxRain = parseInt(document.getElementById('max-rain').value);
+
+        document.getElementById('loading').classList.add('active');
+        document.getElementById('search-btn').disabled = true;
+
+        try {
+            const center = await geocodeLocation(location);
+
+            // Clear previous
+            weatherMarkers.forEach(m => map.removeLayer(m));
+            weatherMarkers = [];
+            if (searchCircle) { map.removeLayer(searchCircle); searchCircle = null; }
+
+            // Draw search circle
+            searchCircle = L.circle([center.lat, center.lon], {
+                radius: radius * 1000,
+                color: '#1a1a2e',
+                fillColor: '#1a1a2e',
+                fillOpacity: 0.04,
+                weight: 1.5,
+                dashArray: '6 4'
+            }).addTo(map);
+
+            // Fit map to circle
+            map.fitBounds(searchCircle.getBounds(), { padding: [20, 20] });
+
+            // Filter cities within radius
+            const citiesInRadius = cities.filter(c =>
+                calculateDistance(center.lat, center.lon, c.lat, c.lon) <= radius
+            );
+
+            const results = [];
+            let checked = 0;
+
+            for (const city of citiesInRadius) {
+                try {
+                    checked++;
+                    document.getElementById('loading-text').textContent =
+                        `Checking ${city.name}... (${checked}/${citiesInRadius.length})`;
+
+                    const weatherData = await getWeather(city.lat, city.lon, apiKey);
+                    const slot = findBestSlot(weatherData, date, timeFrom, timeTo, { minTemp, maxClouds, maxRain }, allDay);
+
+                    results.push({
+                        city: city.name,
+                        lat: city.lat,
+                        lon: city.lon,
+                        ...slot,
+                        distance: Math.round(calculateDistance(center.lat, center.lon, city.lat, city.lon))
+                    });
+                } catch (err) {
+                    console.error(`Error for ${city.name}:`, err);
+                }
+            }
+
+            // Sort by distance
+            results.sort((a, b) => a.distance - b.distance);
+
+            // Display
+            displayResults(results, date);
+            displayCulturalSites(center.lat, center.lon, radius);
+
+            // Collapse controls on mobile
+            if (window.innerWidth < 768) {
+                document.getElementById('controls').classList.add('collapsed');
+            }
+
+        } catch (err) {
+            showStatus(err.message, 'error');
+        } finally {
+            document.getElementById('loading').classList.remove('active');
+            document.getElementById('loading-text').textContent = 'Searching...';
+            document.getElementById('search-btn').disabled = false;
+        }
+    }
+
+    // ══════════════════════════════════════════
+    // DISPLAY RESULTS
+    // ══════════════════════════════════════════
+    function displayResults(results, date) {
+        const sunnyCount = results.filter(r => r.sunny).length;
+        const dateStr = new Date(date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+        const infoText = `${dateStr} · ${sunnyCount} sunny of ${results.length}`;
+
+        // Populate both mobile and desktop lists
+        ['mobile', 'desktop'].forEach(target => {
+            const list = document.getElementById(`${target}-result-list`);
+            const info = document.getElementById(`${target}-results-info`);
+            if (!list || !info) return;
+
+            list.innerHTML = '';
+            info.textContent = infoText;
+
+            results.forEach(r => {
+                const icon = r.sunny ? '☀️' : r.clouds > 70 ? '☁️' : '⛅';
+                const item = document.createElement('div');
+                item.className = 'result-item' + (r.sunny ? '' : ' cloudy');
+                item.innerHTML = `
+                    <div class="result-icon">${icon}</div>
+                    <div class="result-city">${r.city}</div>
+                    <div class="result-data">
+                        <span>🕐 ${r.time}</span>
+                        <span>${r.temp}°</span>
+                        <span>☁ ${r.clouds}%</span>
+                        <span>${r.distance}km</span>
+                        <span class="confidence-badge confidence-${r.confidence}">${r.confidence}</span>
+                    </div>
+                `;
+                // Click to fly to city on map
+                item.addEventListener('click', () => {
+                    map.setView([r.lat, r.lon], 10);
+                    const marker = weatherMarkers.find(m => {
+                        const ll = m.getLatLng();
+                        return Math.abs(ll.lat - r.lat) < 0.01 && Math.abs(ll.lng - r.lon) < 0.01;
+                    });
+                    if (marker) marker.openPopup();
+                });
+                list.appendChild(item);
+            });
+        });
+
+        // Show panels
+        document.getElementById('results-panel').classList.add('active');
+        document.getElementById('desktop-results').classList.add('active');
+
+        // Add markers to map
+        weatherMarkers.forEach(m => map.removeLayer(m));
+        weatherMarkers = [];
+
+        results.forEach(r => {
+            let markerColor, markerSize;
+            if (r.sunny) {
+                markerColor = 'var(--sunny)';
+                markerSize = 14;
+            } else if (r.clouds < 60) {
+                markerColor = 'var(--partly)';
+                markerSize = 10;
+            } else {
+                markerColor = 'var(--cloudy)';
+                markerSize = 8;
+            }
+
+            const icon = L.divIcon({
+                className: '',
+                html: `<div style="
+                    width:${markerSize * 2}px;
+                    height:${markerSize * 2}px;
+                    border-radius:50%;
+                    background:${markerColor};
+                    border:2px solid rgba(26,26,46,0.3);
+                    box-shadow:0 1px 4px rgba(0,0,0,0.2);
+                    display:flex;align-items:center;justify-content:center;
+                    font-size:${markerSize}px;
+                ">${r.sunny ? '☀️' : ''}</div>`,
+                iconSize: [markerSize * 2, markerSize * 2],
+                iconAnchor: [markerSize, markerSize]
+            });
+
+            const marker = L.marker([r.lat, r.lon], { icon }).addTo(map);
+
+            marker.bindPopup(`
+                <div class="popup-name">${r.sunny ? '☀️' : '⛅'} ${r.city}</div>
+                <div class="popup-detail">
+                    ${r.time}<br>
+                    ${r.temp}°C · ☁ ${r.clouds}% · 💧 ${r.rain}%<br>
+                    📍 ${r.distance} km · ${r.confidence}
+                </div>
+            `);
+
+            weatherMarkers.push(marker);
+        });
+    }
+
+    // ══════════════════════════════════════════
+    // CULTURAL SITES ON MAP
+    // ══════════════════════════════════════════
+    let lastCulturalCenter = null, lastCulturalRadius = null;
+
+    function displayCulturalSites(centerLat, centerLon, radius) {
+        lastCulturalCenter = { lat: centerLat, lon: centerLon };
+        lastCulturalRadius = radius;
+        updateCulturalDisplay();
+    }
+
+    function updateCulturalDisplay() {
+        culturalMarkers.forEach(m => map.removeLayer(m));
+        culturalMarkers = [];
+        if (!lastCulturalCenter) return;
+
+        const show = {
+            unesco: document.getElementById('filter-unesco').checked,
+            museums: document.getElementById('filter-museums').checked,
+            architecture: document.getElementById('filter-architecture').checked,
+            art_venues: document.getElementById('filter-art').checked
+        };
+
+        const iconMap = { unesco: '🌍', museums: '🏛️', architecture: '🏰', art_venues: '🎨' };
+        const labelMap = { unesco: 'UNESCO', museums: 'Museum', architecture: 'Architecture', art_venues: 'Art' };
+
+        for (const [category, sites] of Object.entries(culturalSites)) {
+            if (!show[category]) continue;
+            for (const site of sites) {
+                const dist = calculateDistance(lastCulturalCenter.lat, lastCulturalCenter.lon, site.lat, site.lon);
+                if (dist > lastCulturalRadius) continue;
+
+                const marker = L.marker([site.lat, site.lon], {
+                    icon: L.divIcon({
+                        className: '',
+                        html: `<div style="font-size:16px;text-shadow:0 1px 3px rgba(255,255,255,0.9);">${iconMap[category]}</div>`,
+                        iconSize: [24, 24],
+                        iconAnchor: [12, 12]
+                    })
+                }).addTo(map);
+
+                marker.bindPopup(`
+                    <div class="popup-name">${iconMap[category]} ${site.name}</div>
+                    <div class="popup-detail">${site.city} · ${labelMap[category]} · ${Math.round(dist)} km</div>
+                `);
+
+                culturalMarkers.push(marker);
+            }
+        }
+    }
+
+    // ══════════════════════════════════════════
+    // SHARE
+    // ══════════════════════════════════════════
+    async function shareResults() {
+        const url = generateShareURL();
+        if (!url) { showStatus('Search first', 'error'); return; }
+        if (navigator.share) {
+            try {
+                await navigator.share({ title: 'Sunshine Finder', text: 'Where the sun is', url });
+            } catch (e) { if (e.name !== 'AbortError') copyToClipboard(url); }
+        } else {
+            copyToClipboard(url);
+        }
+    }
+
+    function generateShareURL() {
+        const loc = document.getElementById('location').value;
+        const date = document.getElementById('date').value;
+        if (!loc || !date) return null;
+
+        const params = new URLSearchParams();
+        params.set('loc', loc);
+        params.set('r', document.getElementById('radius').value);
+        params.set('d', date);
+
+        if (!document.getElementById('all-day').checked) {
+            const tf = document.getElementById('time-from').value;
+            const tt = document.getElementById('time-to').value;
+            if (tf) params.set('tf', tf);
+            if (tt) params.set('tt', tt);
+        }
+
+        if (document.getElementById('temp-enabled').checked) {
+            params.set('t', document.getElementById('min-temp').value);
+        }
+
+        params.set('c', document.getElementById('max-clouds').value);
+        params.set('p', document.getElementById('max-rain').value);
+
+        return window.location.origin + window.location.pathname + '?' + params.toString();
+    }
+
+    function copyToClipboard(text) {
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text).then(() => showStatus('Link copied!', 'success'));
+        } else {
+            const input = document.createElement('input');
+            input.value = text;
+            document.body.appendChild(input);
+            input.select();
+            document.execCommand('copy');
+            document.body.removeChild(input);
+            showStatus('Link copied!', 'success');
+        }
+    }
+
+    // ══════════════════════════════════════════
+    // LOAD FROM URL PARAMS
+    // ══════════════════════════════════════════
+    function loadFromURL() {
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('loc')) document.getElementById('location').value = decodeURIComponent(params.get('loc'));
+        if (params.has('r')) {
+            document.getElementById('radius').value = params.get('r');
+            document.getElementById('radius-value').textContent = params.get('r') + ' km';
+        }
+        if (params.has('d')) document.getElementById('date').value = params.get('d');
+
+        if (params.has('tf') || params.has('tt')) {
+            document.getElementById('all-day').checked = false;
+            document.getElementById('time-from').disabled = false;
+            document.getElementById('time-to').disabled = false;
+            if (params.has('tf')) document.getElementById('time-from').value = params.get('tf');
+            if (params.has('tt')) document.getElementById('time-to').value = params.get('tt');
+        }
+
+        if (params.has('t')) {
+            document.getElementById('temp-enabled').checked = true;
+            document.getElementById('min-temp').disabled = false;
+            document.getElementById('min-temp').value = params.get('t');
+        }
+        if (params.has('c')) {
+            document.getElementById('max-clouds').value = params.get('c');
+            document.getElementById('clouds-value').textContent = params.get('c') + '%';
+        }
+        if (params.has('p')) {
+            document.getElementById('max-rain').value = params.get('p');
+            document.getElementById('rain-value').textContent = params.get('p') + '%';
+        }
+
+        if (params.has('loc') && params.has('d') && savedKey) {
+            setTimeout(() => findSunshine(), 800);
+        }
+    }
+
+    // ══════════════════════════════════════════
+    // INIT
+    // ══════════════════════════════════════════
+    document.getElementById('search-btn').addEventListener('click', findSunshine);
+    loadFromURL();
+</script>
+</body>
+</html>
